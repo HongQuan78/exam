@@ -1,50 +1,9 @@
 import { Router } from 'express';
 import connection from '../db/connection';
 import crypto from 'crypto';
+import { RowDataPacket } from 'mysql2';
 const router = Router();
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     Question:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *         content:
- *           type: string
- *         answer:
- *           type: string
- *     Test:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *         name:
- *           type: string
- *         courseID:
- *           type: integer
- *         instructorName:
- *           type: string
- */
-
-/**
- * @swagger
- * /api/questions:
- *   get:
- *     summary: Get all questions
- *     tags: [Questions]
- *     responses:
- *       200:
- *         description: List of all questions
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Question'
- */
 router.get('/questions', (req, res) => {
     connection.query('SELECT * FROM question', (err, results) => {
         if (err) {
@@ -54,29 +13,7 @@ router.get('/questions', (req, res) => {
     });
 });
 
-/**
- * @swagger
- * /api/questions/{id}:
- *   get:
- *     summary: Get a question by ID
- *     tags: [Questions]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *         description: ID of the question
- *     responses:
- *       200:
- *         description: A single question
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Question'
- *       404:
- *         description: Question not found
- */
+
 router.get('/questions/:id', (req, res) => {
     connection.query('SELECT * FROM question WHERE id = ?', [req.params.id], (err, results) => {
         if (err) {
@@ -86,23 +23,6 @@ router.get('/questions/:id', (req, res) => {
     });
 });
 
-/**
- * @swagger
- * /api/count/test:
- *   get:
- *     summary: Get the total count of tests
- *     tags: [Tests]
- *     responses:
- *       200:
- *         description: Total count of tests
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalTest:
- *                   type: integer
- */
 router.get('/count/test', (req, res) => {
     connection.query('SELECT COUNT(*) as totalTest FROM test', (err, results) => {
         if (err) {
@@ -204,4 +124,54 @@ router.post('/add-lecture-admin', (req, res) => {
     }
 
 });
+
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { email, password, isLecturer } = req.body;
+        const hashedPassword = crypto.createHash('md5').update(password).digest('hex');
+        const tableName = isLecturer ? 'Instructor' : 'Student';
+        const updateQuery = `UPDATE ${tableName} SET password = ? WHERE email = ?`;
+        const selectQuery = `SELECT id FROM ${tableName} WHERE email = ?`;
+
+        await connection.promise().query(updateQuery, [hashedPassword, email]);  // Update password
+        const [selectResults] = await connection.promise().query<RowDataPacket[]>(selectQuery, [email]);  // Fetch the id
+
+        if (selectResults.length > 0) {
+            const user = selectResults[0];  // Already typed as RowDataPacket, no need for manual cast
+            res.json({ id: user.id });
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+
+router.get('/get-tests-result', (req, res) => {
+    connection.query(`
+SELECT 
+    t.id AS TestID,
+    t.name AS TestName,
+    COUNT(r.id) AS FailedAttempts
+FROM 
+    test t
+JOIN 
+    result r ON t.id = r.testID
+JOIN 
+    test_settings ts ON r.settingID = ts.id
+WHERE 
+    ((SELECT getResultGrade(r.id) * 100 / getResultMaxGrade(r.id)) < ts.passPercent)
+GROUP BY 
+    t.id, t.name;
+    `, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+
 export default router;
