@@ -154,17 +154,22 @@ router.get('/get-tests-result', (req, res) => {
 SELECT 
     t.id AS TestID,
     t.name AS TestName,
-    COUNT(r.id) AS FailedAttempts
+    r.startTime AS TestStartTime,
+    COUNT(CASE WHEN (SELECT getResultGrade(r.id) * 100 / getResultMaxGrade(r.id)) < ts.passPercent THEN r.id END) AS FailedAttempts,
+    COUNT(r.id) AS TotalAttempts,
+    ts.passPercent AS PassingPercentage
 FROM 
     test t
 JOIN 
     result r ON t.id = r.testID
 JOIN 
     test_settings ts ON r.settingID = ts.id
-WHERE 
-    ((SELECT getResultGrade(r.id) * 100 / getResultMaxGrade(r.id)) < ts.passPercent)
 GROUP BY 
-    t.id, t.name;
+    t.id, t.name, ts.passPercent, r.startTime
+ORDER BY 
+    FailedAttempts DESC
+LIMIT 5;
+
     `, (err, results) => {
         if (err) {
             return res.status(500).json({ error: err.message });
@@ -173,5 +178,14 @@ GROUP BY
     });
 });
 
+
+router.get('/get-test-count', (req, res) => {
+    connection.query(`select COUNT(id) as NumberOfTest from test`, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+})
 
 export default router;
