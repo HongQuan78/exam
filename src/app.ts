@@ -8,12 +8,13 @@ import cors from 'cors';
 const app = express();
 const port = 6000;
 
-// CORS configuration
 const corsOptions = {
-  origin: '*', // Allow all origins
+  origin: ['https://crud.live', 'https://admin.crud.live', 'http://localhost:3000'], // Specify the allowed origins
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allow all common HTTP methods
-  allowedHeaders: '*', // Allow any headers
+  allowedHeaders: ['Content-Type', 'Authorization'], // Specify allowed headers, e.g., Content-Type, Authorization
 };
+
+app.use(cors(corsOptions)); // Apply CORS middleware
 
 app.use(cors(corsOptions)); // Apply CORS middleware
 
