@@ -6,15 +6,13 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import cors from 'cors';
 
 const app = express();
-const port = 6000;
+const port = 5000;
 
 const corsOptions = {
   origin: ['https://crud.live', 'https://admin.crud.live', 'http://localhost:3000'], // Specify the allowed origins
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allow all common HTTP methods
   allowedHeaders: ['Content-Type', 'Authorization'], // Specify allowed headers, e.g., Content-Type, Authorization
 };
-
-app.use(cors(corsOptions)); // Apply CORS middleware
 
 app.use(cors(corsOptions)); // Apply CORS middleware
 
@@ -29,7 +27,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://103.216.118.120:${port}`,
+        url: `http://localhost:${port}`,
       },
     ],
   },
@@ -43,5 +41,5 @@ app.use(bodyParser.json());
 app.use('/api', apiRoutes);
 
 app.listen(port, () => {
-  console.log(`Server is running on http://103.216.118.120:${port}`);
+  console.log(`Server is running on http://localhost:${port}`);
 });
